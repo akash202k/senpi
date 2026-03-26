@@ -79,18 +79,38 @@ graph TB
 ### Key Architecture Components
 
 ### 1. Crossplane Composition Layer
-Single CRD abstracts full agent lifecycle:
+One API call creates everything. You define a `SenpiAgent` resource, Crossplane handles the rest:
 
 ```yaml
 apiVersion: platform.senpi.ai/v1alpha1
 kind: SenpiAgent
 spec:
   parameters:
-    userId: alice
+    userId: user-88
     modelProvider: openai
 ```
 
-Provisions: namespace isolation, encrypted secrets pipeline, StatefulSet with persistent state, termination protection sidecar.
+**What Crossplane provisions automatically:**
+- Dedicated namespace (`user-88`)
+- ServiceAccount with RBAC
+- Encrypted secrets from AWS Secrets Manager
+- StatefulSet with persistent volume (10GB)
+- Terminator sidecar for capital protection
+
+**Real reconciliation in action:** Change the spec, Crossplane updates infrastructure. Delete the resource, everything gets cleaned up. No manual kubectl commands, no leftover resources.
+
+This POC shows 4 core resources. Production would add: NetworkPolicies, PodDisruptionBudgets, HorizontalPodAutoscaler, monitoring ServiceMonitors, backup CronJobs, and more—all from one CRD.
+
+**Proof it works:**
+
+![Crossplane reconciliation creating SenpiAgent resource](assets/image-f6a45bfd-38d9-4f55-bb17-7576b1bfaab1.png)
+*Single SenpiAgent resource triggers full stack provisioning*
+
+![Composition creates all child resources automatically](assets/image-cb40763e-6183-4040-9780-c2cb2717c329.png)
+*Crossplane composition provisions namespace, secrets, StatefulSet in sync*
+
+![Full resource tree - namespace, ServiceAccount, secrets, StatefulSet](assets/image-8daa0a40-9078-4cae-a84a-181026326ab0.png)
+*All child resources: namespace, ServiceAccount, secrets, StatefulSet running*
 
 **Deployment complexity: gone. App teams never touch Kubernetes.**
 
@@ -115,7 +135,6 @@ func checkActivePositions() bool {
 
 | Capability | Railway Hobby | Railway Pro/Enterprise | This Architecture |
 |------------|---------------|------------------------|-------------------|
-| **Cost at 10k agents** | $70-100k/month | $70-100k+/month | $20-30k/month |
 | **Pod shutdown safety** | ❌ Positions exposed | ❌ Positions exposed | ✅ Protected |
 | **User API keys** | ❌ Platform has access | ❌ Platform has access | ✅ Zero-knowledge |
 | **SOC 2 compliance** | ❌ Not available | ✅ Available | ✅ Built-in |
