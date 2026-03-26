@@ -66,14 +66,14 @@ graph TB
         Loki --> Grafana
     end
 
-    style CRD fill:#9f7aea
-    style Composition fill:#9f7aea
-    style ASM fill:#f6ad55
-    style ESO fill:#f6ad55
-    style Secret fill:#f6ad55
-    style Terminator fill:#48bb78
-    style Container fill:#4299e1
-    style PV fill:#ed8936
+    style CRD fill:#9f7aea,color:#000
+    style Composition fill:#9f7aea,color:#000
+    style ASM fill:#f6ad55,color:#000
+    style ESO fill:#f6ad55,color:#000
+    style Secret fill:#f6ad55,color:#000
+    style Terminator fill:#48bb78,color:#000
+    style Container fill:#4299e1,color:#000
+    style PV fill:#ed8936,color:#000
 ```
 
 ### Key Architecture Components
