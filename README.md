@@ -2,7 +2,7 @@
 
 ## The Problem I Identified
 
-AI trading agents managing live positions face critical infrastructure failures on platforms like Railway:
+Senpi AI trading agents managing live positions face critical infrastructure failures on platforms like Railway:
 
 1. **Pod evictions liquidate open positions** — Infrastructure events trigger SIGTERM during active trades, leaving capital unprotected
 2. **Users must share AI API keys with the platform** — OpenAI/Anthropic keys stored in Railway environment variables = platform has full access. Regulatory red flag for fintech.
