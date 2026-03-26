@@ -6,7 +6,7 @@ AI trading agents managing live positions face critical infrastructure failures 
 
 1. **Pod evictions liquidate open positions** — Infrastructure events trigger SIGTERM during active trades, leaving capital unprotected
 2. **Users must share AI API keys with the platform** — OpenAI/Anthropic keys stored in Railway environment variables = platform has full access. Regulatory red flag for fintech.
-3. **SOC 2 requires Pro tier minimum** — Hobby ($5/month) has zero compliance coverage. Pro ($20/month) has SOC 2, but doesn't solve the core problem: user secrets living on shared infrastructure without true isolation.
+3. **SOC 2 requires Pro tier minimum** — Hobby ($5/month) has zero compliance coverage. [Pro ($20/month) has SOC 2](https://railway.com/pricing#:~:text=18%20months-,SOC%202%20compliance,-Granular%20access%20control), but doesn't solve the core problem: user secrets living on shared infrastructure without true isolation.
 4. **No real multi-tenancy** — One agent's failure cascades; no namespace isolation or resource guarantees
 
 When downtime means liquidations and compliance means custody of user credentials, infrastructure isn't optional—it's the product.
