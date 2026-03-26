@@ -1,0 +1,166 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xsenpiagents.platform.senpi.ai
+  labels:
+    provider: kubernetes
+spec:
+  compositeTypeRef:
+    apiVersion: platform.senpi.ai/v1alpha1
+    kind: XSenpiAgent
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: user-namespace
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Namespace
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.metadata.name
+
+          - name: agent-serviceaccount
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: ServiceAccount
+                    metadata:
+                      name: agent
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: agent-secrets
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Secret
+                    metadata:
+                      name: ai-model-credentials
+                    type: Opaque
+                    stringData:
+                      encrypted-api-key: ""
+                      salt: ""
+                      model-provider: ""
+                      model-name: ""
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.modelApiKey
+                toFieldPath: spec.forProvider.manifest.stringData.encrypted-api-key
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.modelApiKeySalt
+                toFieldPath: spec.forProvider.manifest.stringData.salt
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.modelProvider
+                toFieldPath: spec.forProvider.manifest.stringData.model-provider
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.modelName
+                toFieldPath: spec.forProvider.manifest.stringData.model-name
+
+          - name: agent-statefulset
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha1
+              kind: Object
+              spec:
+                forProvider:
+                  manifest:
+                    apiVersion: apps/v1
+                    kind: StatefulSet
+                    metadata:
+                      labels:
+                        app: senpi-agent
+                    spec:
+                      serviceName: agent-service
+                      replicas: 1
+                      selector:
+                        matchLabels:
+                          app: senpi-agent
+                      template:
+                        metadata:
+                          labels:
+                            app: senpi-agent
+                        spec:
+                          serviceAccountName: agent
+                          containers:
+                            - name: openclaw
+                              image: akash202k/senpi:v1
+                              lifecycle:
+                                preStop:
+                                  exec:
+                                    command: ["/usr/local/bin/terminator"]
+                              env:
+                                - name: MODEL_PROVIDER
+                                  valueFrom:
+                                    secretKeyRef:
+                                      name: ai-model-credentials
+                                      key: model-provider
+                                - name: MODEL_NAME
+                                  valueFrom:
+                                    secretKeyRef:
+                                      name: ai-model-credentials
+                                      key: model-name
+                                - name: ENCRYPTED_API_KEY
+                                  valueFrom:
+                                    secretKeyRef:
+                                      name: ai-model-credentials
+                                      key: encrypted-api-key
+                                - name: API_KEY_SALT
+                                  valueFrom:
+                                    secretKeyRef:
+                                      name: ai-model-credentials
+                                      key: salt
+                              volumeMounts:
+                                - name: agent-state
+                                  mountPath: /var/lib/agent
+                                - name: credentials
+                                  mountPath: /var/secrets
+                                  readOnly: true
+                          volumes:
+                            - name: credentials
+                              secret:
+                                secretName: ai-model-credentials
+                      volumeClaimTemplates:
+                        - metadata:
+                            name: agent-state
+                          spec:
+                            accessModes: ["ReadWriteOnce"]
+                            resources:
+                              requests:
+                                storage: 10Gi
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.spec.selector.matchLabels.user
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.userId
+                toFieldPath: spec.forProvider.manifest.spec.template.metadata.labels.user

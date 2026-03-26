@@ -1,0 +1,52 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xsenpiagents.platform.senpi.ai
+spec:
+  group: platform.senpi.ai
+  names:
+    kind: XSenpiAgent
+    plural: xsenpiagents
+  claimNames:
+    kind: SenpiAgent
+    plural: senpiagents
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [parameters]
+            properties:
+              parameters:
+                type: object
+                required: [userId, walletAddress, modelProvider, modelApiKey, modelApiKeySalt]
+                properties:
+                  userId:
+                    type: string
+                    description: "Unique user identifier"
+                  walletAddress:
+                    type: string
+                    description: "User's blockchain wallet address"
+                  modelProvider:
+                    type: string
+                    enum: ["openai", "anthropic", "google", "platform"]
+                    description: "AI model provider"
+                  modelApiKey:
+                    type: string
+                    description: "Encrypted API key (base64 encoded)"
+                  modelApiKeySalt:
+                    type: string
+                    description: "Encryption salt for key derivation (base64 encoded)"
+                  modelName:
+                    type: string
+                    default: "gpt-4"
+                    description: "Model to use (e.g., gpt-4, claude-opus)"
+                  strategy:
+                    type: string
+                    default: "stalker"
+                    description: "Trading strategy identifier"

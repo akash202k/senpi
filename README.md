@@ -1,0 +1,148 @@
+# Infrastructure for AI Trading Agents That Can't Afford Downtime
+
+## The Problem I Identified
+
+AI trading agents managing live positions face critical infrastructure failures on platforms like Railway:
+
+1. **Pod evictions liquidate open positions** — Infrastructure events trigger SIGTERM during active trades, leaving capital unprotected
+2. **Users must share AI API keys with the platform** — OpenAI/Anthropic keys stored in Railway environment variables = platform has full access. Regulatory red flag for fintech.
+3. **SOC 2 requires Pro tier minimum** — Hobby ($5/month) has zero compliance coverage. Pro ($20/month) has SOC 2, but doesn't solve the core problem: user secrets living on shared infrastructure without true isolation.
+4. **No real multi-tenancy** — One agent's failure cascades; no namespace isolation or resource guarantees
+
+When downtime means liquidations and compliance means custody of user credentials, infrastructure isn't optional—it's the product.
+
+---
+
+## Architecture Solution
+
+```mermaid
+graph TB
+    subgraph "User Layer"
+        User[User/App Team]
+    end
+
+    subgraph "Control Plane"
+        User -->|kubectl apply| CRD[SenpiAgent CRD]
+        CRD -->|Crossplane| Composition[Composition Engine]
+    end
+
+    subgraph "Secrets Pipeline - Zero Knowledge"
+        Client[Client-Side Encryption] -->|Encrypted Keys| ASM[AWS Secrets Manager]
+        ASM -->|External Secrets Operator| ESO[ESO]
+        ESO -->|Inject to Pod| Secret[K8s Secret]
+    end
+
+    subgraph "EKS Cluster - Per-User Namespace"
+        Composition -->|Provisions| NS[Namespace: user-alice]
+        Composition -->|Provisions| SA[ServiceAccount]
+        Composition -->|Provisions| SS[StatefulSet]
+        
+        Secret -.->|Mounted| SS
+        
+        SS --> Pod[Agent Pod]
+        
+        subgraph "Pod: Trading Agent"
+            Container[OpenClaw Agent<br/>• Cron Jobs<br/>• Trading Logic<br/>• State Management]
+            Terminator[Terminator Sidecar<br/>• PreStop Hook<br/>• Position Check<br/>• Block SIGTERM]
+            PV[Persistent Volume<br/>Agent State<br/>10GB]
+        end
+        
+        Pod --> Container
+        Pod --> Terminator
+        Pod -.->|Mounts| PV
+    end
+
+    subgraph "External Services"
+        Container -->|Query Positions| HL[Hyperliquid API]
+        Container -->|Decrypt & Use| AI[OpenAI/Anthropic]
+        Terminator -->|Check Active Trades| HL
+        Container -->|Audit Trail| CloudWatch[CloudWatch Logs]
+    end
+
+    subgraph "Observability"
+        Pod -->|Metrics| Prometheus[Prometheus]
+        Pod -->|Logs| Loki[Loki]
+        Prometheus --> Grafana[Grafana Dashboards]
+        Loki --> Grafana
+    end
+
+    style CRD fill:#9f7aea
+    style Composition fill:#9f7aea
+    style ASM fill:#f6ad55
+    style ESO fill:#f6ad55
+    style Secret fill:#f6ad55
+    style Terminator fill:#48bb78
+    style Container fill:#4299e1
+    style PV fill:#ed8936
+```
+
+### Key Architecture Components
+
+### 1. Crossplane Composition Layer
+Single CRD abstracts full agent lifecycle:
+
+```yaml
+apiVersion: platform.senpi.ai/v1alpha1
+kind: SenpiAgent
+spec:
+  parameters:
+    userId: alice
+    modelProvider: openai
+```
+
+Provisions: namespace isolation, encrypted secrets pipeline, StatefulSet with persistent state, termination protection sidecar.
+
+**Deployment complexity: gone. App teams never touch Kubernetes.**
+
+### 2. Terminator Sidecar — Capital Protection
+PreStop hook that blocks pod termination during active Hyperliquid positions. 5-minute timeout prevents node deadlock. Infrastructure updates don't kill trades.
+
+```go
+func checkActivePositions() bool {
+    // Query Hyperliquid API or local state
+    // Block SIGTERM if positions are open
+}
+```
+
+### 3. Zero-Knowledge Secrets Pipeline
+**The Railway Problem:** Users paste OpenAI API keys into environment variables. Platform has full access. SOC 2 compliance available on Pro ($20/month), but Hobby users have no coverage. Even with SOC 2, Railway still holds plaintext secrets.
+
+**The Solution:** Client-side encryption → AWS Secrets Manager → External Secrets Operator → pod injection. Keys never touch platform servers in plaintext. Audit trail included. SOC 2 compliance built into architecture regardless of tier.
+
+---
+
+## What This Enables
+
+| Capability | Railway Hobby | Railway Pro/Enterprise | This Architecture |
+|------------|---------------|------------------------|-------------------|
+| **Cost at 10k agents** | $70-100k/month | $70-100k+/month | $20-30k/month |
+| **Pod shutdown safety** | ❌ Positions exposed | ❌ Positions exposed | ✅ Protected |
+| **User API keys** | ❌ Platform has access | ❌ Platform has access | ✅ Zero-knowledge |
+| **SOC 2 compliance** | ❌ Not available | ✅ Available | ✅ Built-in |
+| **Real multi-tenancy** | ❌ Process isolation | ❌ Process isolation | ✅ Namespace isolation |
+
+---
+
+## Technical Stack
+
+**Infrastructure:** EKS, Crossplane, Karpenter, VPC/IAM  
+**Secrets:** AWS Secrets Manager, External Secrets Operator  
+**Deployments:** GitHub Actions, ArgoCD, Helm, zero-downtime rollouts  
+**Observability:** Prometheus, Grafana, Loki — SLOs for financial systems  
+**Agent Runtime:** StatefulSets, persistent volumes, OpenClaw integration  
+**Blockchain:** Hyperliquid API integration, wallet operations, position monitoring  
+
+---
+
+## Implementation Roadmap
+
+1. Production EKS cluster + Crossplane control plane
+2. Secrets pipeline: AWS Secrets Manager → ESO → pod injection
+3. Terminator sidecar integration across agent fleet
+4. Observability stack: alerting on position orphaning, state corruption, MCP auth expiry
+5. Scale testing: dozens → thousands of concurrent agents
+6. SOC 2 compliance audit preparation
+
+---
+
+**This infrastructure becomes the competitive moat.** Competitors lose traders because their infrastructure liquidates positions. This one doesn't.
