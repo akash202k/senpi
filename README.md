@@ -99,7 +99,7 @@ spec:
 ```
 
 **What Crossplane provisions automatically:**
-- Dedicated namespace (`user-88`)
+- Dedicated namespace (`user-88`) > All agents gets deployed into it 
 - ServiceAccount with RBAC
 - Encrypted secrets from AWS Secrets Manager
 - StatefulSet with persistent volume (10GB)
@@ -119,6 +119,11 @@ This POC shows 4 core resources. Production would add: NetworkPolicies, PodDisru
 
 ![Full resource tree - namespace, ServiceAccount, secrets, StatefulSet](assets/image-8daa0a40-9078-4cae-a84a-181026326ab0.png)
 *All child resources: namespace, ServiceAccount, secrets, StatefulSet running*
+
+![Openclaw agent running ](assets/image.png)
+*Openclaw agent running*
+![Openclaw agent logs - real openclaw deployed but need to configure and modeify things for prodction ](assets/oc-running.png)
+*Openclaw agent logs - real openclaw deployed but need to configure and modify i mean dummy creds addded for now*
 
 **Deployment complexity: gone. App teams never touch Kubernetes.**
 
