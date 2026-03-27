@@ -83,11 +83,19 @@ One API call creates everything. You define a `SenpiAgent` resource, Crossplane 
 
 ```yaml
 apiVersion: platform.senpi.ai/v1alpha1
-kind: SenpiAgent
+kind:
+metadata:
+  name: user-88-agent
+  namespace: default
 spec:
   parameters:
-    userId: user-88
-    modelProvider: openai
+    userId: "user-88"
+    walletAddress: "0xc97ff0A66bC84FB8BcCEa34065af48d86be72B45"
+    modelProvider: "openai"
+    modelApiKey: "Xktb3BlbmFpLWtleQo="
+    modelApiKeySalt: "dGVzdHNhbHQxMjM0NTY3OA=="
+    modelName: "gpt-4"
+    strategy: "striker"
 ```
 
 **What Crossplane provisions automatically:**
